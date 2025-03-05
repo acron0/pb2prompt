@@ -1,10 +1,10 @@
 {
-  "name": "@template/cli",
+  "name": "pb2prompt",
   "version": "0.0.0",
   "type": "module",
   "packageManager": "pnpm@9.10.0",
   "license": "MIT",
-  "description": "A basic Effect CLI application",
+  "description": "Convert ProductBoard data to prompts",
   "repository": {
     "type": "git",
     "url": "<PLACEHOLDER>"
