@@ -44,6 +44,9 @@ const command = Command.make(
 
         //
         const products = yield* pba.products()
+        // const productsWithComponents = yield* Effect.all(
+        //   products.map((product) => pba.components({ productId: product.id }))
+        // )
 
         //
         const markdown = yield* pw.write({ title, description, products })
@@ -57,7 +60,11 @@ const command = Command.make(
         )),
         Effect.tapError(Effect.logError)
       )
-    }).pipe(Effect.provide(ProductboardAdapterLayerLive), Effect.provide(PromptWriterLayerLive))
+    }).pipe(
+      Effect.provide(ProductboardAdapterLayerLive),
+      Effect.provide(PromptWriterLayerLive),
+      Effect.withSpan("Hi", { attributes: { foo: "bar" } })
+    )
 )
 
 export const run = Command.run(command, {

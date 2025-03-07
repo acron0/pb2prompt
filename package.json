@@ -34,6 +34,7 @@
     "@changesets/cli": "^2.27.8",
     "@effect/cli": "latest",
     "@effect/eslint-plugin": "^0.2.0",
+    "@effect/experimental": "^0.42.0",
     "@effect/language-service": "^0.1.0",
     "@effect/platform": "latest",
     "@effect/platform-node": "latest",

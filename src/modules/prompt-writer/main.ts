@@ -1,8 +1,25 @@
 import { Effect, Layer } from "effect"
-import { pipe } from "remeda"
+import { map, pipe } from "remeda"
+import { defaultString } from "src/lib/string.js"
+import type { Product } from "src/modules/productboard-adapter/entities/product.js"
 import { PromptWriterError } from "src/modules/prompt-writer/error.js"
 import { PromptWriter } from "src/modules/prompt-writer/interface.js"
 import { addBulletList, addEmptyLine, addHeading, addParagraph, addTitle } from "src/modules/prompt-writer/lib.js"
+
+const addProducts = (products: Array<Product>) => (s: Array<string>): Array<string> => {
+  const productPrompts = map(
+    products,
+    (product) =>
+      pipe(
+        [],
+        addHeading(`Product: ${product.name}`),
+        addParagraph(defaultString(product.description, "(No description was provided)")),
+        addEmptyLine()
+      ).join("\n")
+  )
+
+  return [...s, ...productPrompts]
+}
 
 export const PromptWriterLayer = Layer.effect(
   PromptWriter,
@@ -14,9 +31,11 @@ export const PromptWriterLayer = Layer.effect(
           addTitle(title),
           addParagraph(description),
           addEmptyLine(),
-          addHeading("Products"),
+          addHeading("Product Overview"),
           addParagraph("These are the products in our portfolio:"),
           addBulletList(products.map((p) => p.name)),
+          addEmptyLine(),
+          addProducts(products),
           addEmptyLine()
         )
         return result.join("\n")
