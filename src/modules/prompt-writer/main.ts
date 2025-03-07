@@ -6,7 +6,7 @@ import { PromptWriterError } from "src/modules/prompt-writer/error.js"
 import { PromptWriter } from "src/modules/prompt-writer/interface.js"
 import { addBulletList, addEmptyLine, addHeading, addParagraph, addTitle } from "src/modules/prompt-writer/lib.js"
 
-const addProducts = (products: Array<Product>) => (s: Array<string>): Array<string> => {
+const addProducts = (products: ReadonlyArray<Product>) => (s: Array<string>): Array<string> => {
   const productPrompts = map(
     products,
     (product) =>

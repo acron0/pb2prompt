@@ -5,7 +5,7 @@ import type { PromptWriterError } from "src/modules/prompt-writer/error.js"
 
 export type PromptWriter = {
   write: (
-    args: { title: string; description: string; products: Array<Product> }
+    args: { title: string; description: string; products: ReadonlyArray<Product> }
   ) => Effect.Effect<string, PromptWriterError>
 }
 

@@ -1,5 +1,5 @@
 import { Command, Options } from "@effect/cli"
-import { ConfigProvider, Console, Effect, Logger, LogLevel, Option } from "effect"
+import { Chunk, ConfigProvider, Console, Effect, Logger, LogLevel, Option, Stream } from "effect"
 import { ProductboardAdapter, ProductboardAdapterLayerLive } from "src/modules/productboard-adapter/index.js"
 import { PromptWriter, PromptWriterLayerLive } from "src/modules/prompt-writer/index.js"
 
@@ -29,8 +29,9 @@ const description = Options.text("description")
 const command = Command.make(
   "pb2prompt",
   { token, logLevel, title, description },
-  ({ description, logLevel, title, token }) =>
+  (args) =>
     Effect.gen(function*() {
+      const { description, logLevel, title, token } = args
       const safeLogLevel = Option.match(logLevel, {
         onNone: () => LogLevel.Info,
         onSome: (logLevel) => logLevelChoices[logLevel]
@@ -43,10 +44,14 @@ const command = Command.make(
         const pw = yield* PromptWriter
 
         //
-        const products = yield* pba.products()
-        // const productsWithComponents = yield* Effect.all(
-        //   products.map((product) => pba.components({ productId: product.id }))
-        // )
+        const products = Chunk.toReadonlyArray(yield* Stream.runCollect(pba.products()))
+        yield* Effect.annotateCurrentSpan({ products: { length: products.length } })
+
+        const components = Chunk.toReadonlyArray(yield* Stream.runCollect(pba.components()))
+        yield* Effect.annotateCurrentSpan({ components: { length: components.length } })
+
+        const features = Chunk.toReadonlyArray(yield* Stream.runCollect(pba.features()))
+        yield* Effect.annotateCurrentSpan({ features: { length: features.length } })
 
         //
         const markdown = yield* pw.write({ title, description, products })
@@ -63,7 +68,7 @@ const command = Command.make(
     }).pipe(
       Effect.provide(ProductboardAdapterLayerLive),
       Effect.provide(PromptWriterLayerLive),
-      Effect.withSpan("Hi", { attributes: { foo: "bar" } })
+      Effect.withSpan("pb2prompt", { attributes: { args } })
     )
 )
 

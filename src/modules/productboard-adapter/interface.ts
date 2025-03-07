@@ -1,10 +1,12 @@
-import type { Effect } from "effect"
+import type { Stream } from "effect"
 import { Context } from "effect"
-import type { Product } from "src/modules/productboard-adapter/entities/product.js"
+import type { Component, Feature, Product } from "src/modules/productboard-adapter/entities/index.js"
 import type { ProductboardAdapterError } from "src/modules/productboard-adapter/error.js"
 
 export type ProductboardAdapter = {
-  products: () => Effect.Effect<Array<Product>, ProductboardAdapterError>
+  products: () => Stream.Stream<Product, ProductboardAdapterError, never>
+  components: () => Stream.Stream<Component, ProductboardAdapterError, never>
+  features: () => Stream.Stream<Feature, ProductboardAdapterError, never>
 }
 
 export const ProductboardAdapter = Context.GenericTag<ProductboardAdapter>("ProductboardAdapter")

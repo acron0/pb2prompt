@@ -1,13 +1,19 @@
 import { HttpClient } from "@effect/platform"
-import { Config, Effect, Layer } from "effect"
+import { Chunk, Config, Effect, Layer, Option, Stream } from "effect"
 import { parseWithSchema } from "src/lib/zod.js"
-import { ProductSchema } from "src/modules/productboard-adapter/entities/product.js"
+import {
+  ComponentArraySchema,
+  FeatureArraySchema,
+  ProductArraySchema
+} from "src/modules/productboard-adapter/entities/index.js"
 import { ProductboardAdapterError } from "src/modules/productboard-adapter/error.js"
 import { ProductboardAdapter } from "src/modules/productboard-adapter/interface.js"
 
 const baseUri = "https://api.productboard.com"
-const routes = { products: "/products" }
+const routes = { products: "/products", components: "/components", features: "/features" }
 type RouteKeys = keyof typeof routes
+
+type NextLinkType = string | undefined
 
 export const ProductboardAdapterLayer = Layer.effect(
   ProductboardAdapter,
@@ -23,9 +29,7 @@ export const ProductboardAdapterLayer = Layer.effect(
           "X-Version": "1"
         }
         const [status, result] = yield* client.get(uri, { headers }).pipe(
-          Effect.andThen((response) =>
-            Effect.zip(Effect.succeed(response.status), response.json.pipe(Effect.map((j: any) => j.data)))
-          )
+          Effect.andThen((response) => Effect.zip(Effect.succeed(response.status), response.json))
         )
 
         if (status !== 200) {
@@ -36,17 +40,73 @@ export const ProductboardAdapterLayer = Layer.effect(
         } else return result
       })
 
+    const productsInternal = get("products").pipe(
+      Effect.andThen((result) => parseWithSchema(ProductArraySchema, result)),
+      Effect.scoped
+    )
+
+    const componentsInternal = get("components").pipe(
+      Effect.andThen((result) => parseWithSchema(ComponentArraySchema, result)),
+      Effect.scoped
+    )
+
+    const featuresInternal = get("features").pipe(
+      Effect.andThen((result) => parseWithSchema(FeatureArraySchema, result)),
+      Effect.scoped
+    )
+
     const products: ProductboardAdapter["products"] = () =>
-      Effect.gen(function*() {
-        return yield* get("products").pipe(
-          Effect.andThen((result) => parseWithSchema(ProductSchema.array(), result))
+      Stream.paginateChunkEffect(undefined as NextLinkType, (nextLink) =>
+        Effect.gen(function*() {
+          const result = yield* (nextLink === undefined
+            ? productsInternal
+            : Effect.succeed({ data: [], links: { next: undefined } }))
+          const nextLinkValue: NextLinkType = result.links.next || undefined
+          return [
+            Chunk.fromIterable(result.data),
+            nextLinkValue === undefined ? Option.none<NextLinkType>() : Option.some(nextLinkValue)
+          ]
+        })).pipe(
+          Stream.catchAll((error) => new ProductboardAdapterError({ error, message: "Failed to fetch products" })),
+          Stream.withSpan("ProductboardAdapterLayer.products")
         )
-      }).pipe(
-        Effect.catchAll((error) => new ProductboardAdapterError({ error, message: "Failed to fetch products" })),
-        Effect.scoped
-      )
+
+    const components: ProductboardAdapter["components"] = () =>
+      Stream.paginateChunkEffect(undefined as NextLinkType, (nextLink) =>
+        Effect.gen(function*() {
+          const result = yield* (nextLink === undefined
+            ? componentsInternal
+            : Effect.succeed({ data: [], links: { next: undefined } }))
+          const nextLinkValue: NextLinkType = result.links.next || undefined
+          return [
+            Chunk.fromIterable(result.data),
+            nextLinkValue === undefined ? Option.none<NextLinkType>() : Option.some(nextLinkValue)
+          ]
+        })).pipe(
+          Stream.catchAll((error) => new ProductboardAdapterError({ error, message: "Failed to fetch components" })),
+          Stream.withSpan("ProductboardAdapterLayer.components")
+        )
+
+    const features: ProductboardAdapter["features"] = () =>
+      Stream.paginateChunkEffect(undefined as NextLinkType, (nextLink) =>
+        Effect.gen(function*() {
+          const result = yield* (nextLink === undefined
+            ? featuresInternal
+            : Effect.succeed({ data: [], links: { next: undefined } }))
+          const nextLinkValue: NextLinkType = result.links.next || undefined
+          return [
+            Chunk.fromIterable(result.data),
+            nextLinkValue === undefined ? Option.none<NextLinkType>() : Option.some(nextLinkValue)
+          ]
+        })).pipe(
+          Stream.catchAll((error) => new ProductboardAdapterError({ error, message: "Failed to fetch features" })),
+          Stream.withSpan("ProductboardAdapterLayer.features")
+        )
+
     return ProductboardAdapter.of({
-      products
+      products,
+      components,
+      features
     })
   })
 )
